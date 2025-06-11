@@ -2,6 +2,7 @@ from transformers import pipeline
 import os
 import random
 import logging
+from collections import deque
 
 # Logging ayarları
 logging.basicConfig(level=logging.DEBUG)
@@ -24,51 +25,48 @@ class BDTYanitSistemi:
             # BDT yaklaşımına göre yanıtlar
             self.yanitlar = {
                 "POZİTİF": [
-                    "Bu olumlu duyguları yaşamanız harika! Bu anı değerlendirmek ve olumlu deneyimlerinizi günlüğünüze kaydetmek ister misiniz?",
-                    "Harika bir ruh halindesiniz! Bu olumlu duyguları daha sık yaşamak için neler yapabileceğinizi düşündünüz mü?",
-                    "Bu olumlu duygu durumunuzu sürdürmek için kendinize nasıl bir ödül verebilirsiniz?",
-                    "Bu olumlu duyguyu tetikleyen şey neydi? Bu deneyimi daha sık yaşamak için neler yapabilirsiniz?",
-                    "Bu olumlu duygu durumunuzun hayatınızın diğer alanlarına etkisi nasıl olabilir?",
-                    "Bu olumlu deneyimi nasıl değerlendiriyorsunuz? Bu duyguyu daha sık yaşamak için neler yapabilirsiniz?",
-                    "Bu olumlu duygu durumunuzu sürdürmek için kendinize nasıl bir ödül verebilirsiniz?",
-                    "Bu olumlu duyguları yaşamanız çok güzel! Bu anı değerlendirmek ve olumlu deneyimlerinizi günlüğünüze kaydetmek ister misiniz?"
-                ],
+    "Bu duyguyu yaşamanız harika! Bu olumlu deneyimi günlüğünüze kaydetmek ister misiniz? Böylece zor zamanlarda bu anı hatırlayabilirsiniz.",
+    "Harika! Bu olumlu duygu durumunun altında yatan düşünce ve davranışlarınızı fark ettiniz mi? Bunları günlük rutininize ekleyebilirsiniz.",
+    "Bu olumlu duyguyu sürdürmek için kendinize küçük ödüller verebilirsiniz. Örneğin, sevdiğiniz bir aktiviteyi planlamak gibi.",
+    "Bu enerjiyi başkalarıyla paylaşmak da size iyi gelebilir. Belki bir arkadaşınızla bu olumlu deneyimi paylaşabilirsiniz.",
+    "Bu olumlu ruh halinizi sürdürmek için mindfulness tekniklerini deneyebilirsiniz. Şu anı tam olarak yaşamak ve kaydetmek önemli."
+],
                 "NÖTR": [
-                    "Bu durumu daha detaylı değerlendirmek ister misiniz? Şu anki düşünceleriniz neler?",
-                    "Bu durumla ilgili alternatif bakış açıları düşünmek ister misiniz?",
-                    "Şu anki durumunuzu değiştirmek istediğiniz bir yön var mı?",
-                    "Bu durumun sizin için anlamı nedir?",
-                    "Bu durumla ilgili daha detaylı düşünmek ister misiniz?",
-                    "Bu durumun hayatınızın diğer alanlarına etkisi nasıl?",
-                    "Bu durumu daha olumlu bir şekilde değerlendirmek için neler yapabilirsiniz?",
-                    "Bu durumla ilgili değiştirmek istediğiniz bir şey var mı?"
-                ],
+    "Bu durumu biraz daha detaylı düşünelim. Bu düşüncelerin altında yatan inançlarınız neler olabilir?",
+    "Bu durumla ilgili alternatif düşünce yolları var mı? Farklı bir perspektiften bakmayı denediniz mi?",
+    "Bu durumun sizi nasıl etkilediğini düşünüyorsunuz? Düşünce-duygu-davranış döngüsünü görebiliyor musunuz?",
+    "Bu durumla ilgili kanıtları değerlendirelim. Düşüncelerinizi destekleyen ve desteklemeyen kanıtlar neler?",
+    "Bu durumu bir arkadaşınız yaşasaydı, ona nasıl bir tavsiye verirdiniz? Bazen kendimize dışarıdan bakmak faydalı olabilir."
+],
                 "NEGATİF": {
-                    "anlama_ve_destek": [
-                        "Bu duyguyu yaşadığınız için üzgünüm. Sizi anlıyorum ve buradayım.",
-                        "Bu duyguları yaşamanız normal. Sizi dinliyorum ve destekliyorum.",
-                        "Bu duyguyu yaşadığınızı duyduğuma üzüldüm. Sizinle konuşmak isterim.",
-                        "Bu duygularla başa çıkmak zor olabilir. Sizi anlıyorum ve yanınızdayım.",
-                        "Bu duyguyu yaşadığınızı duyduğuma üzüldüm. Sizinle konuşmak ve size destek olmak isterim."
-                    ],
+                   "anlama_ve_destek": [
+    "Bu duyguları yaşamanız zor olmalı. Öncelikle kendinize karşı nazik olun. Bu duygular geçici ve normal.",
+    "Bu düşüncelerin altında yatan inançlarınızı keşfetmek ister misiniz? Bazen düşüncelerimiz duygularımızı etkiler.",
+    "Bu durumla baş etmek için kullandığınız stratejiler var mı? Belki birlikte yeni yöntemler geliştirebiliriz.",
+    "Bu duyguların yoğunluğunu 1-10 arasında değerlendirir misiniz? Bu, duygularınızı daha iyi anlamamıza yardımcı olur.",
+    "Bu durumla ilgili en kötü senaryo nedir? Ve en iyi senaryo? Gerçekçi bir senaryo düşünürsek ne olur?"
+],
                     "nefes_egzersizleri": [
-                        "Şu an kendinize iyi gelmek için 4-7-8 nefes tekniğini deneyebilirsiniz: 4 saniye nefes alın, 7 saniye tutun, 8 saniyede verin.",
-                        "Nefes egzersizleri yapmak ister misiniz? Bu, sakinleşmenize yardımcı olabilir.",
-                        "Şu an kendinize iyi gelmek için derin nefes alabilirsiniz. 4 saniye nefes alın, 4 saniye tutun ve 4 saniyede verin.",
-                        "Nefes egzersizleri yapmak ister misiniz? Bu, duygularınızı düzenlemenize yardımcı olabilir."
-                    ],
+    "Şimdi birlikte bir nefes egzersizi yapalım. Burnunuzdan 4 saniyede nefes alın, 7 saniye tutun ve 8 saniyede verin. Bu, sinir sisteminizi dengelemeye yardımcı olacak.",
+    "Gözlerinizi kapatın ve nefesinize odaklanın. Her nefeste vücudunuzun nasıl hissettiğini fark edin. Bu anda kalmanıza yardımcı olacak.",
+    "5-4-3-2-1 tekniğini deneyelim: Şu anda gördüğünüz 5 şeyi, duyduğunuz 4 sesi, dokunabildiğiniz 3 şeyi, koklayabildiğiniz 2 şeyi ve tadabildiğiniz 1 şeyi sayın.",
+    "Düşüncelerinizi yargılamadan gözlemleyin. Onları bulutlar gibi düşünün - gelip geçiyorlar. Siz onlar değilsiniz.",
+    "Şu anda bedeninizde gerginlik hissettiğiniz yerler var mı? O bölgelere odaklanıp nefes alarak gevşemeyi deneyin."
+],
                     "aktivite_onerileri": [
-                        "Kısa bir yürüyüşe çıkmak size iyi gelebilir. Doğada vakit geçirmek ruh halinizi olumlu etkileyebilir.",
-                        "Sevdiğiniz bir müziği dinlemek ve dans etmek endorfin seviyenizi yükseltebilir.",
-                        "Size iyi gelen bir aktiviteye zaman ayırmak ister misiniz? Örneğin resim yapmak, yazı yazmak veya meditasyon yapmak.",
-                        "Kısa bir yürüyüşe çıkmak veya hafif egzersiz yapmak size iyi gelebilir."
-                    ],
+    "Kısa bir yürüyüş yapmayı deneyin. Hareket etmek ve temiz hava almak ruh halinizi iyileştirebilir. Yürürken çevrenizdeki güzel şeylere odaklanın.",
+    "Sizi rahatlatan bir müzik açın ve 5 dakika boyunca sadece müziğe odaklanın. Düşüncelerinizi müzikle birlikte akışa bırakın.",
+    "Günlüğünüze bu duygularınızı yazın. Yazarken kendinizi yargılamayın, sadece gözlemleyin. Bu, duygularınızı daha iyi anlamanıza yardımcı olabilir.",
+    "Sevdiğiniz bir içeceği hazırlayın ve onu yavaşça, farkındalıkla için. Her yudumun tadını, sıcaklığını ve kokusunu fark edin.",
+    "Basit bir mindfulness egzersizi yapın: Şu anda yaptığınız işe tamamen odaklanın. Düşünceleriniz başka yerlere giderse, nazikçe nefesinize geri dönün."
+],
                     "profesyonel_yardim": [
-                        "Bu duygularla başa çıkmakta zorlandığınızı görüyorum. Bir uzmandan destek almak size yardımcı olabilir.",
-                        "Bu duygular günlük hayatınızı etkiliyorsa, profesyonel destek almak önemli olabilir.",
-                        "Bu duygularla başa çıkmak için yalnız olmadığınızı bilin. Bir uzmandan destek almak size yardımcı olabilir.",
-                        "Bu duygularla başa çıkmakta zorlandığınızı görüyorum. Bir uzmanla görüşmek ister misiniz?"
-                    ]
+    "Bu duygularla baş etmekte zorlandığınızı görüyorum. Bir uzmandan destek almak, bu süreçte size yardımcı olabilir. BDT terapistleri bu konuda özel eğitimlidir.",
+    "Duygularınızın yoğunluğu ve süresi, profesyonel destek almanın faydalı olabileceğini gösteriyor. Bu bir zayıflık değil, kendinize verdiğiniz bir hediyedir.",
+    "BDT tekniklerini bir uzmanla birlikte uygulamak, size daha etkili stratejiler geliştirmenizde yardımcı olabilir. Bu süreçte yalnız değilsiniz.",
+    "Düşünce-duygu-davranış döngüsünü kırmak için profesyonel destek almak, size yeni perspektifler kazandırabilir. Bu, uzun vadeli iyileşme için önemli bir adım olabilir.",
+    "Terapistinizle birlikte çalışarak, bu zor duygularla baş etme becerilerinizi geliştirebilir ve daha sağlıklı düşünce kalıpları oluşturabilirsiniz."
+]
                 }
             }
             
@@ -76,10 +74,24 @@ class BDTYanitSistemi:
             self.son_etiket = None
             self.son_yanit = None
             self.negatif_mesaj_sayisi = 0
+            self.terapi_hedefi = None
             
         except Exception as e:
             logger.error(f"BDT sistemi başlatılırken hata oluştu: {str(e)}")
             raise
+    
+    def terapi_hedefi_belirle(self, metin, etiket):
+        """Mevcut duruma göre terapi hedefi belirler"""
+        if etiket == "NEGATİF":
+            if "kaygı" in metin.lower() or "endişe" in metin.lower():
+                return "kaygı yönetimi"
+            elif "öfke" in metin.lower() or "sinir" in metin.lower():
+                return "öfke kontrolü"
+            elif "üzüntü" in metin.lower() or "mutsuz" in metin.lower():
+                return "duygu düzenleme"
+            elif "stres" in metin.lower() or "gergin" in metin.lower():
+                return "stres yönetimi"
+        return None
     
     def analiz_et(self, metin):
         try:
@@ -92,8 +104,11 @@ class BDTYanitSistemi:
             # Etiket eşleştirme
             if etiket == "ÇOK NEGATİF":
                 etiket = "NEGATİF"
-                # Çok negatif durumlar için daha güçlü bir yanıt oluştur
-                guven = min(guven + 0.1, 1.0)  # Güven skorunu biraz artır
+                guven = min(guven + 0.1, 1.0)
+            
+            # Terapi hedefi belirleme
+            if not self.terapi_hedefi:
+                self.terapi_hedefi = self.terapi_hedefi_belirle(metin, etiket)
             
             # Sohbet geçmişini güncelle
             self.sohbet_gecmisi.append({
@@ -113,16 +128,20 @@ class BDTYanitSistemi:
                 # Anlama ve destek mesajı
                 yanit = random.choice(self.yanitlar["NEGATİF"]["anlama_ve_destek"])
                 
-                # Ek öneriler
+                # Terapi hedefine göre özel yanıt
+                if self.terapi_hedefi:
+                    if self.terapi_hedefi == "kaygı yönetimi":
+                        yanit += "\n\nKaygıyla baş etmek için nefes egzersizleri çok faydalı olabilir. Hadi birlikte bir egzersiz yapalım: " + random.choice(self.yanitlar["NEGATİF"]["nefes_egzersizleri"])
+                    elif self.terapi_hedefi == "öfke kontrolü":
+                        yanit += "\n\nÖfke kontrolü için mindfulness teknikleri etkili olabilir. " + random.choice(self.yanitlar["NEGATİF"]["aktivite_onerileri"])
+                    elif self.terapi_hedefi == "duygu düzenleme":
+                        yanit += "\n\nDuygularınızı düzenlemek için günlük tutmak faydalı olabilir. " + random.choice(self.yanitlar["NEGATİF"]["aktivite_onerileri"])
+                    elif self.terapi_hedefi == "stres yönetimi":
+                        yanit += "\n\nStres yönetimi için fiziksel aktivite önemlidir. " + random.choice(self.yanitlar["NEGATİF"]["aktivite_onerileri"])
+                
+                # Profesyonel yardım önerisi
                 if self.negatif_mesaj_sayisi >= 3:
-                    # 3 veya daha fazla negatif mesaj varsa profesyonel yardım öner
                     yanit += "\n\n" + random.choice(self.yanitlar["NEGATİF"]["profesyonel_yardim"])
-                else:
-                    # Nefes egzersizi veya aktivite önerisi
-                    if random.random() < 0.5:
-                        yanit += "\n\n" + random.choice(self.yanitlar["NEGATİF"]["nefes_egzersizleri"])
-                    else:
-                        yanit += "\n\n" + random.choice(self.yanitlar["NEGATİF"]["aktivite_onerileri"])
             else:
                 # Pozitif veya nötr yanıtlar için
                 yanit = random.choice(self.yanitlar[etiket])
@@ -133,7 +152,8 @@ class BDTYanitSistemi:
             return {
                 'etiket': etiket,
                 'guven': guven,
-                'yanit': yanit
+                'yanit': yanit,
+                'terapi_hedefi': self.terapi_hedefi
             }
             
         except Exception as e:
